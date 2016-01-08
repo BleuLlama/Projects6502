@@ -21,7 +21,7 @@ GETKEY  = $1F6A	; ROMFN: A>15 = bad key, otherwise, it's the key
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; 7-seg display
 
-SCANS	= $1F1F	; (INH, POINTL, POINTH)  F9, FA, FB -> Display
+SCANDS	= $1F1F	; (INH, POINTL, POINTH)  F9, FA, FB -> Display
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

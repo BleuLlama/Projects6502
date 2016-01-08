@@ -131,7 +131,7 @@ tempAdisp:
 	lda	#$00
 	sta	KIM_POINTH
 	sta	KIM_INH
-	jsr	SCANS		; update display
+	jsr	SCANDS		; update display
 	jmp	keyinput	; repeat
 	
 
@@ -155,7 +155,7 @@ keyShiftIntoDisplay:
 	stx	KIM_POINTH	; store the modified X back out
 
 	; and finally display it to the screen
-	jsr	SCANS		; and display it to the screen
+	jsr	SCANDS		; and display it to the screen
 
 
 .if .defined(UseVideoDisplay0)

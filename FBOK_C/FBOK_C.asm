@@ -16,5 +16,5 @@ start:
 	sta	KIM_POINTL	; put it into the second digit
 	sta	KIM_INH		; put it into the third digit
 loop:
-	jsr	SCANS		; display it to the screen
+	jsr	SCANDS		; display it to the screen
 	jmp 	loop

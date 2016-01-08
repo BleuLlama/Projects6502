@@ -18,6 +18,6 @@ store:
 	sta	KIM_POINTL	; copy A to the second digit
 	sta	KIM_INH		; copy A to the third digit
 
-	jsr	SCANS		; refresh the display
+	jsr	SCANDS		; refresh the display
 	jsr	GETKEY		; read a key, 0x15 if no press
 	jmp	store		; repeat

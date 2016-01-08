@@ -51,7 +51,7 @@ cls7seg:
 	sta     KIM_POINTH	; left two digits
 	sta     KIM_POINTL	; middle two digits
 	sta     KIM_INH		; right two digits
-	jsr     SCANS		; draw it to the display
+	jsr     SCANDS		; draw it to the display
 
 	rts			; return
 
@@ -68,7 +68,7 @@ displayVersion:
 	lda     VERSIONL
 	sta     KIM_POINTL	;    01
 
-	jsr     SCANS		; draw it to the display
+	jsr     SCANDS		; draw it to the display
 
 	rts			; return
 

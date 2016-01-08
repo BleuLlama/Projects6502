@@ -37,7 +37,7 @@ keycolor:
 	sta	KIM_POINTH 	; left two digits
 	sta	KIM_POINTL	; middle two digits
 	sta	KIM_INH		; right two digits
-	jsr	SCANS		; draw it to the display
+	jsr	SCANDS		; draw it to the display
 
 keyloop:
 	; check for key
@@ -49,7 +49,7 @@ keyloop:
 
 	; copy it to the screen
 	sta	KIM_INH
-	jsr	SCANS		; and display it to the screen
+	jsr	SCANDS		; and display it to the screen
 
 
 .if .defined(UseVideoDisplay0)
