@@ -2,6 +2,10 @@
 ; 2015-11-15
 ; Scott Lawrence - yorgle@gmail.com
 
+.define VERSIONL #$00
+.define VERSIONH #$00
+UseVideoDisplay0 = 1
+
 .include "KimDefs.asm"
 .include "KimLib.asm"
 
