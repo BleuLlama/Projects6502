@@ -1,4 +1,6 @@
-; First book of kim, page 9
+; Mini Program A
+;  First book of kim, page 9
+;
 ; Swaps data in addrs $10, $11
 
 
