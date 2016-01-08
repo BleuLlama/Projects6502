@@ -1,8 +1,8 @@
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
-; Kim OS defines
+; Kim ROM/RAM defines
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; keypad
+; keypad - ROM functions
 
 ; key presses
 AK	= $1EFE	; ROMFN: key down a=0, key up a<>0
@@ -19,13 +19,13 @@ GETKEY  = $1F6A	; ROMFN: A>15 = bad key, otherwise, it's the key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 7-seg display
+; 7-seg display - ROM functions
 
-SCANDS	= $1F1F	; (INH, POINTL, POINTH)  F9, FA, FB -> Display
+SCANDS	= $1F1F	; ROMFN: refresh KIM_POINTL,POINTH,INH to the display
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Serial TTY
+; Serial TTY - ROM functions
 
 GETCH	= $1E5A	; ROMFN: Gets TTY char to A
 OUTCH	= $1EA0	; ROMFN: Prints A as ASCII to TTY
@@ -34,7 +34,7 @@ PRTBYT	= $1E3B	; ROMFN: TTY Out A as 2 hex chars
 PRTPNT	= $1E1D	; ROMFN: Prints FB, FA to TTY
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; KIM-1 Zero Page
+; KIM-1 Zero Page memory usage
 
 	; Machine Register Storage Buffer
 MREG_PCL	= $EF	; program counter - low order byte
@@ -59,7 +59,7 @@ KIM_MODE	= $FF
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; KIM-1 Rom/Timer
+; KIM-1 Rom/Timer - Control addresses
 
 KIM_SAD		= $1700	; DA  Data reg A
 KIM_PADD	= $1701 ; DDA Data direction A

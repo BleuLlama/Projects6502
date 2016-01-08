@@ -8,7 +8,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ;   include this after including "KimDefines.asm"
-;   your code should start with the label "main"
+;   
+;   the entry point for your code should be a label called "main"
 ;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -38,7 +39,7 @@ entrypoint:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; end
-;  - jump here to end everything
+;  - jump here to end everything (centralized)
 end:
 	brk
 
@@ -122,6 +123,6 @@ clsloop:
 
 	rts
 
-
 .endif ; UseVideoDisplay0
+
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
