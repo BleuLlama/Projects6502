@@ -7,12 +7,18 @@
 ; Scott Lawrence - yorgle@gmail.com
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Functions:
+;	A--F: enter new number into the display
+;	AD  : shift value left one bit (x2)
+;	DA  : shift value right one bit (integer /2)
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Version history
 
 .define VERSIONH #$00
-.define VERSIONL #$02
+.define VERSIONL #$03
 
 ; v 00 02 - 2016-01-04 - 
 ; v 00 01 - 2016-01-01 - initial version, keypad input support
@@ -104,13 +110,23 @@ handleControlKey:
 	jmp	keyinput	; repeat
 
 
+; AD- shift left by one bit
 handle_AD:
-	lda	#$11
-	jmp	tempAdisp
+	clc
+	rol	KIM_INH
+	rol	KIM_POINTL
+	rol	KIM_POINTH
+	jsr	SCANDS
+	jmp	keyinput
 
+; DA- shift right by one bit
 handle_DA:
-	lda	#$22
-	jmp	tempAdisp
+	clc
+	ror	KIM_POINTH
+	ror	KIM_POINTL
+	ror	KIM_INH
+	jsr	SCANDS
+	jmp	keyinput
 
 handle_PC:
 	lda	#$33
@@ -135,8 +151,32 @@ tempAdisp:
 	jmp	keyinput	; repeat
 	
 
-	; handle a digit 0..F
+	; handle a digit 0..F shift in from the right...
 keyShiftIntoDisplay:
+	ldx	#$04		; 4 bits to shift
+ksid_loop:
+	clc			; rol pulls from carry, so clear it
+	rol	KIM_INH		; shift this byte by 1
+	rol	KIM_POINTL	; shift this one, shift in carry from INH
+	rol	KIM_POINTH	; shift this one, shift in carry from POINTL
+	dex			; x = x - 1
+	txa			; a = x
+	cmp	#$00		; a == 0?
+	bne	ksid_loop	; mot 0, repeat loop
+
+	; now shove the content in
+	lda	KEYBAK		; restore key 00 .. 0F to A
+	ora	KIM_INH		; A = A | INH
+	sta	KIM_INH		; INH = A
+
+	jsr	SCANDS		; and display it to the screen
+	jmp	keyinput	; next!
+	
+
+
+
+
+old__keyShiftIntoDisplay:
 	; right byte
 	lda	KEYBAK		; A = Key pressed (A to be shifted in)
 
