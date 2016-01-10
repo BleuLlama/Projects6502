@@ -154,15 +154,15 @@ tempAdisp:
 	; handle a digit 0..F shift in from the right...
 keyShiftIntoDisplay:
 	ldx	#$04		; 4 bits to shift
-ksid_loop:
-	clc			; rol pulls from carry, so clear it
+
+:	clc			; rol pulls from carry, so clear it
 	rol	KIM_INH		; shift this byte by 1
 	rol	KIM_POINTL	; shift this one, shift in carry from INH
 	rol	KIM_POINTH	; shift this one, shift in carry from POINTL
 	dex			; x = x - 1
 	txa			; a = x
 	cmp	#$00		; a == 0?
-	bne	ksid_loop	; mot 0, repeat loop
+	bne	:-		; mot 0, repeat loop
 
 	; now shove the content in
 	lda	KEYBAK		; restore key 00 .. 0F to A
@@ -172,6 +172,10 @@ ksid_loop:
 	jsr	SCANDS		; and display it to the screen
 	jmp	keyinput	; next!
 	
+	; this version (v4) above was 27 bytes.
+	; v3 was 46 + 20 bytes (66 bytes)
+	; v2 was never completed
+	; v1 wouldn't work
 
 
 
