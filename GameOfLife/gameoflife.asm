@@ -7,7 +7,7 @@
 ; Scott Lawrence - yorgle@gmail.com
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-.error This is not functional yet.
+;.error This is not functional yet.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Version history
@@ -39,16 +39,6 @@ SHIFTSCRATCH = $11	; shifter needs this when it's running.
 ; main 
 ;  - the library entry point.
 main:
-	lda	#$0
-	ldy	#$0
-	ldx	$4000
-	inx
-	txa
-	jsr 	fillscr
-	lda	#$0
-	ldx	#$0
-	ldy	#$0
-
 
 ; Conway\'s Game of Life
 ; http://rosettacode.org/wiki/Conway\'s_Game_of_Life

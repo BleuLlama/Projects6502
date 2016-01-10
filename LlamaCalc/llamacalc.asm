@@ -18,8 +18,10 @@
 ; Version history
 
 .define VERSIONH #$00
-.define VERSIONL #$03
+.define VERSIONL #$04
 
+; v 00 04 - PC/+ stack pop and push
+; v 00 03 - Sped up input routine, AD lshift, DA rshift
 ; v 00 02 - 2016-01-04 - 
 ; v 00 01 - 2016-01-01 - initial version, keypad input support
 
@@ -41,16 +43,23 @@ UseVideoDisplay0 = 1 ; video display 0
 
 KEYBAK	     = $10
 SHIFTSCRATCH = $11	; shifter needs this when it's running.
+STACKDEPTH   = $12
+STACKIDX     = $13
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; main 
 ;  - the library entry point.
 main:
-	ldx	#0
+	lda	#0
+	sta	STACKDEPTH	; reset stack depth
 
-main0:
-	lda	RANDOM
+	; display version to screen
+	jsr	displayVersion	; display the version number
+
+	; display some nosie to the lcd
+	ldx	#$80
+:	lda	RANDOM
 	sta	RASTER,Y
 	ldy	RANDOM
 	lda	RANDOM
@@ -63,16 +72,16 @@ main0:
 	sta	RASTER+$300,Y
 	inx
 	cmp	#0
-	bne	main0
+	bne	:-
 
 
 
 .if .defined(UseVideoDisplay0)
 	jsr	cls		; clear the screen black
 .endif
-	jsr	cls7seg
-	jsr	displayVersion	; display the version number
 
+	; now clear the display, and go to our key input loop
+	jsr	cls7seg
 	jmp	keyinput	; press a key, get a color
 	jsr	end		; end it
 
@@ -129,12 +138,12 @@ handle_DA:
 	jmp	keyinput
 
 handle_PC:
-	lda	#$33
-	jmp	tempAdisp
+	jsr	popvalue
+	jmp	keyinput
 
 handle_PL:
-	lda	#$44
-	jmp	tempAdisp
+	jsr	pushvalue
+	jmp	keyinput
 
 handle_GO:
 	lda	#$55
@@ -170,37 +179,6 @@ keyShiftIntoDisplay:
 	sta	KIM_INH		; INH = A
 
 	jsr	SCANDS		; and display it to the screen
-	jmp	keyinput	; next!
-	
-	; this version (v4) above was 27 bytes.
-	; v3 was 46 + 20 bytes (66 bytes)
-	; v2 was never completed
-	; v1 wouldn't work
-
-
-
-
-old__keyShiftIntoDisplay:
-	; right byte
-	lda	KEYBAK		; A = Key pressed (A to be shifted in)
-
-	ldx	KIM_INH		; X = INH
-	jsr 	shifter 	; shift around nibbles
-	stx	KIM_INH		; store X back out
-
-	; middle byte
-	ldx	KIM_POINTL	; X from the byte
-	jsr	shifter		; shift ecverything around
-	stx	KIM_POINTL	; store the modified X back out
-
-	; left byte
-	ldx	KIM_POINTH	; X from the byte
-	jsr	shifter		; shift ecverything around
-	stx	KIM_POINTH	; store the modified X back out
-
-	; and finally display it to the screen
-	jsr	SCANDS		; and display it to the screen
-
 
 .if .defined(UseVideoDisplay0)
 	; and display the color
@@ -208,55 +186,87 @@ old__keyShiftIntoDisplay:
 	jsr	fillscr		; fill the screen
 .endif
 
-	jmp 	keyinput	; repeat...
+	jmp	keyinput	; next!
+	
+	; this version (v4) above was 27 bytes.
+	; v3 was 46 + 20 bytes (66 bytes)
+	; v2 was never completed
+	; v1 wouldn't work
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; shifter
-;  roll A through X (for keypad->multibyte display use)
-;  eg:  A=$0D   X=$4C  ->  X=$CD  A=$0C
-;    in: A - nibble to shift in from the right
-;    in: X - byte to work on
-;    mod: Y - scratch
-;    out: A - nibble shifted out
-shifter:
-	; 1. store aside A in Y
-	and 	#$0F	; clean up A (just in case)
-	sta	SHIFTSCRATCH
-		; A = input byte / nib
-		; X = starting byte
-		; SHIFTSCRATCH = masked input nibble
 
-	; 2. generate carry result, store on stack
-	txa		; A = X
-	lsr
-	lsr
-	lsr
-	lsr		; A >>= 4 (shift nibble down)
-	;and	#$0F	; A &= 0x0F (mask it) (unnecessary due to LSR)
-	pha		; push A onto stack
+pushvalue:
+	; make sure it's ok to do
+	lda	STACKDEPTH
+	cmp	#$05
+	beq	stackerror
 
-		; A = carry nibble (junk now)
-		; X = starting byte
-		; SHIFTSCRATCH = masked input nibble
-		; stack =  x >> 4 (carry nibble)
+	; ok. we're good to go, store it!
+	lda	KIM_POINTH
+	ldx	STACKIDX
+	sta	stack, x
+	inx
 
-	; 3. shift nibble and apply new carry in
-	txa		; A = X
-	asl
-	asl
-	asl
-	asl		; a <<=4 (shift nibble up)
-	;and	#$F0	; A &= 0xF0 (mask it) (unnecessary due to ASL)
-	ora	SHIFTSCRATCH	; A = A | SCRATCH  ( shift in nibble)
-		; A = output byte (shifted nibbles)
-		; X = junk
-		; SHIFTSCRATCH = masked input nibble (junk now)
+	lda	KIM_POINTL
+	sta	stack, x
+	inx
 
-	; 4. Setup return values 
-	tax		; X = A
-	pla		; pop A from stack (from 2.)
-		; X = output byte
-		; A = carry nibble
+	lda	KIM_INH
+	sta	stack, x
+	inx
 
-	; 5. and return
-	rts		; return 
+	stx	STACKIDX
+
+	; and display the stack level
+	inc	STACKDEPTH
+	jmp	showstack
+
+popvalue:
+	; make sure it's ok to do
+	lda	STACKDEPTH
+	cmp	#$00
+	beq	stackerror
+
+	; ok. we're good to go, restore it
+	ldx	STACKIDX
+	dex
+	lda	stack, x
+	sta	KIM_INH
+
+	dex
+	lda	stack, x
+	sta	KIM_POINTL
+
+	dex
+	lda	stack, x
+	sta	KIM_POINTH
+	stx	STACKIDX
+
+	; and display the value
+	dec	STACKDEPTH
+	jsr	SCANDS
+	rts
+
+
+; show a stack error
+;  EExx 5D	("S"tack "D"epth)
+stackerror:
+	lda	#$EE
+	sta	KIM_POINTH
+	jmp	sstb
+
+; show the stack in this format:
+;  00xx 5D	("S"tack "D"epth)
+showstack:
+	lda	#$00
+	sta	KIM_POINTH
+sstb:
+	lda	STACKDEPTH
+	sta	KIM_POINTL
+	lda	#$5D
+	sta	KIM_INH
+	jsr	SCANDS		; and show it
+	rts
+
+; since we're loaded into ram, we'll store the stack here:
+stack:
