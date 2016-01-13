@@ -36,6 +36,15 @@ install:
 
 
 ################################################################################
+# generate C code block for KIM Uno source
+
+c: $(PROJ).lst
+	@echo $(PROJ): running through converter
+	@perl ../Tools/lst2c.pl $(PROJ).lst
+
+
+
+################################################################################
 # keep the place tidy
 clean:
 	@echo $(PROJ): Cleaning project
