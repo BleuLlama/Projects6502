@@ -78,7 +78,7 @@ printf( "const unsigned char ROM_%s[ kROMSize_%s ] PROGMEM = {\n",
 	$projectname, $projectname );
 
 $nper = 0;
-$maxline = 16;
+$maxline = 10;
 $idx = 0;
 
 foreach $x ( @bytes )
@@ -87,7 +87,7 @@ foreach $x ( @bytes )
 		printf( "      " );
 	}
 	$idx++;
-	printf( "%s", $x );
+	printf( "0x%s", $x );
 	if( $idx != (scalar @bytes) ) {
 		printf( ", " );
 	}
