@@ -9,9 +9,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Functions:
-;	A--F: enter new number into the display
-;	AD  : shift value left one bit (x2)
-;	DA  : shift value right one bit (integer /2)
+;	A--F : enter new number into the display
+;	AD   : shift value left one bit (x2)
+;	DA   : shift value right one bit (integer /2)
+; 	PC/+ : pop/push current value to stack
+;	GO   : continue (when in an error or startup display)
 
 
 
@@ -19,8 +21,10 @@
 ; Version history
 
 .define VERSIONH #$00
-.define VERSIONL #$05
+.define VERSIONL #$06
 
+; v 00 06 - Better, more flexible error display with backup and 'GO' press
+; v 00 05 - some error display
 ; v 00 04 - PC/+ stack pop and push
 ; v 00 03 - Sped up input routine, AD lshift, DA rshift
 ; v 00 02 - 2016-01-04 - 
@@ -46,6 +50,10 @@ KEYBAK	     = $10
 SHIFTSCRATCH = $11	; shifter needs this when it's running.
 STACKDEPTH   = $12
 STACKIDX     = $13
+BAK_INH	     = $14
+BAK_POINTL   = $15
+BAK_POINTH   = $16
+
 STACK        = $20	; uses maxdepth * 3 bytes (goes up)
 
 
@@ -56,9 +64,14 @@ main:
 	lda	#0
 	sta	STACKDEPTH	; reset stack depth
 
+	sta	BAK_INH		; start with 00 00 00 
+	sta	BAK_POINTL
+	sta	BAK_POINTH
+
 	; display version to screen
 	jsr	displayVersion	; display the version number
 
+.if .defined(UseVideoDisplay0)
 	; display some nosie to the lcd
 	ldx	#$80
 :	lda	RANDOM
@@ -76,13 +89,11 @@ main:
 	cmp	#0
 	bne	:-
 
-
-
-.if .defined(UseVideoDisplay0)
 	jsr	cls		; clear the screen black
 .endif
 
 	; now clear the display, and go to our key input loop
+	jsr	waitForGO
 	jsr	cls7seg
 	jmp	keyInput	; press a key, get a color
 	jsr	end		; end it
@@ -126,9 +137,6 @@ handleControlKey:
 
 ; AD- shift left by one bit
 handle_AD:
-	jsr	errorLoop
-	jmp	keyInput
-
 	clc
 	rol	KIM_INH
 	rol	KIM_POINTL
@@ -205,7 +213,6 @@ pushValue:
 	cmp	#$05
 	beq	stackError
 
-pushNoCheck:
 	; ok. we're good to go, store it!
 	lda	KIM_POINTH
 	ldx	STACKIDX
@@ -224,7 +231,7 @@ pushNoCheck:
 
 	; and display the stack level
 	inc	STACKDEPTH
-	jmp	showStack
+	rts
 
 popValue:
 	; make sure it's ok to do
@@ -254,58 +261,73 @@ popValue:
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; error code display
-;
-;   load the error code into 
-;	press "GO" to continue past
-errorLoop:
-	; push the current number to store it aside
-	jsr	pushNoCheck	; push POINTH/POINTL/INH
+; store aside the display for the moment
+backupDisplay:
+	pha			; push A
+	lda	KIM_INH
+	sta	BAK_INH
+	lda	KIM_POINTH
+	sta	BAK_POINTH
+	lda	KIM_POINTL
+	sta	BAK_POINTL
+	pla			; pop A
+	rts
 
-	; update the display...  will be EE NN 5d
+restoreDisplay:
+	pha			; push A
+	lda	BAK_INH
+	sta	KIM_INH
+	lda	BAK_POINTH
+	sta	KIM_POINTH
+	lda	BAK_POINTL
+	sta	KIM_POINTL
+	pla			; pop A
+	rts
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; error code display routines
+;
+;   load the error code into A, call 'errorShow
+;	press "GO" to continue past
+errorShow:
+	; push the current number to store it aside
+	jsr	backupDisplay	; backup POINTH/POINTL/INH
+
+	; update the display...  will be EE 00 (A)
+	sta	KIM_INH
+
+errorLoop00:
+	lda	#$00
+	sta	KIM_POINTL
+
+errorLoopEE:
 	lda	#$EE
 	sta	KIM_POINTH
 
-	lda	#$42
-	sta	KIM_POINTL
-
-	lda	#$5D
-	sta	KIM_INH
-
+waitForGO:
 	; display the above, repeat until [GO] is pressed
-:	jsr	SCANDS		; display the new stuff
+	jsr	SCANDS		; display the new stuff
 	jsr	GETKEY		; get a keypress
 	sta	KEYBAK		; KeyBak = a
 	cmp	KEY_GO		; was 'go' pressed?
-	bne	:-		; nope, scan again...
+	bne	waitForGO	; nope, scan again...
 
 	; restore the display and return
-	jsr	popValue	; pop POINTH/POINTL/INH
+	jsr	restoreDisplay	; pop POINTH/POINTL/INH
 	jsr	SCANDS		; display the new stuff
 	rts			; return
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; rework this ;;;;;
-
-; show a stack error
-;  EExx 5D	("S"tack "D"epth)
+; stackError
+;   displays the current stack depth
+;		EE (depth) 5D
 stackError:
-	;; flesh this out more
-	lda	#$EE
-	sta	KIM_POINTH
-	jmp	sstb
+	jsr	backupDisplay
 
-; show the stack in this format:
-;  00xx 5D	("S"tack "D"epth)
-showStack:
-	lda	#$00
-	sta	KIM_POINTH
-sstb:
-	lda	STACKDEPTH
-	sta	KIM_POINTL
 	lda	#$5D
 	sta	KIM_INH
-	jsr	SCANDS		; and show it
-	rts
 
+	lda	STACKDEPTH
+	sta	KIM_POINTL
+
+	; then continue above
+	jmp	errorLoopEE
