@@ -5,6 +5,7 @@
 ;
 ;  Created for the RetroChallenge RC2016-1
 ; Scott Lawrence - yorgle@gmail.com
+;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Functions:
@@ -18,7 +19,7 @@
 ; Version history
 
 .define VERSIONH #$00
-.define VERSIONL #$04
+.define VERSIONL #$05
 
 ; v 00 04 - PC/+ stack pop and push
 ; v 00 03 - Sped up input routine, AD lshift, DA rshift
@@ -45,6 +46,7 @@ KEYBAK	     = $10
 SHIFTSCRATCH = $11	; shifter needs this when it's running.
 STACKDEPTH   = $12
 STACKIDX     = $13
+STACK        = $20	; uses maxdepth * 3 bytes (goes up)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -82,17 +84,17 @@ main:
 
 	; now clear the display, and go to our key input loop
 	jsr	cls7seg
-	jmp	keyinput	; press a key, get a color
+	jmp	keyInput	; press a key, get a color
 	jsr	end		; end it
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-keyinput:
+keyInput:
 	; check for key
 	jsr	GETKEY		; get a keypress
 	sta	KEYBAK		; KeyBak = a
 	cmp	KEY_NONE 	; $15 is "no press"
-	beq	keyinput	; then there's no press, check again
+	beq	keyInput	; then there's no press, check again
 
 	; store aside a backup of the press
 	;jmp	keyShiftIntoDisplay
@@ -116,17 +118,23 @@ handleControlKey:
 	beq	handle_PL
 	cmp	KEY_GO		; GO button
 	beq	handle_GO
-	jmp	keyinput	; repeat
+	jmp	keyInput	; repeat
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; control key handlers
 
 ; AD- shift left by one bit
 handle_AD:
+	jsr	errorLoop
+	jmp	keyInput
+
 	clc
 	rol	KIM_INH
 	rol	KIM_POINTL
 	rol	KIM_POINTH
 	jsr	SCANDS
-	jmp	keyinput
+	jmp	keyInput
 
 ; DA- shift right by one bit
 handle_DA:
@@ -135,30 +143,23 @@ handle_DA:
 	ror	KIM_POINTL
 	ror	KIM_INH
 	jsr	SCANDS
-	jmp	keyinput
+	jmp	keyInput
 
 handle_PC:
-	jsr	popvalue
-	jmp	keyinput
+	jsr	popValue
+	jmp	keyInput
 
 handle_PL:
-	jsr	pushvalue
-	jmp	keyinput
+	jsr	pushValue
+	jmp	keyInput
 
 handle_GO:
-	lda	#$55
-	jmp	tempAdisp
+	jmp	keyInput
 
 
-	; debugging, just display whatever's in A to the screen
-tempAdisp:
-	sta	KIM_POINTL	; short circuit
-	lda	#$00
-	sta	KIM_POINTH
-	sta	KIM_INH
-	jsr	SCANDS		; update display
-	jmp	keyinput	; repeat
-	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; number key handlers (0-F)
+; shift the value in from the right
 
 	; handle a digit 0..F shift in from the right...
 keyShiftIntoDisplay:
@@ -169,8 +170,7 @@ keyShiftIntoDisplay:
 	rol	KIM_POINTL	; shift this one, shift in carry from INH
 	rol	KIM_POINTH	; shift this one, shift in carry from POINTL
 	dex			; x = x - 1
-	txa			; a = x
-	cmp	#$00		; a == 0?
+	cpx	#$00		; x == 0?
 	bne	:-		; mot 0, repeat loop
 
 	; now shove the content in
@@ -186,59 +186,64 @@ keyShiftIntoDisplay:
 	jsr	fillscr		; fill the screen
 .endif
 
-	jmp	keyinput	; next!
+	jmp	keyInput	; next!
 	
-	; this version (v4) above was 27 bytes.
+	; v4 above was 27 bytes. (then further reduved to 26)
+	;    (up to and including the jsr SCANDS)
 	; v3 was 46 + 20 bytes (66 bytes)
+	;    (up to and including the jsr SCANDS)
 	; v2 was never completed
 	; v1 wouldn't work
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pushvalue:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Stack functions
+
+pushValue:
 	; make sure it's ok to do
 	lda	STACKDEPTH
 	cmp	#$05
-	beq	stackerror
+	beq	stackError
 
+pushNoCheck:
 	; ok. we're good to go, store it!
 	lda	KIM_POINTH
 	ldx	STACKIDX
-	sta	stack, x
+	sta	STACK, x
 	inx
 
 	lda	KIM_POINTL
-	sta	stack, x
+	sta	STACK, x
 	inx
 
 	lda	KIM_INH
-	sta	stack, x
+	sta	STACK, x
 	inx
 
 	stx	STACKIDX
 
 	; and display the stack level
 	inc	STACKDEPTH
-	jmp	showstack
+	jmp	showStack
 
-popvalue:
+popValue:
 	; make sure it's ok to do
 	lda	STACKDEPTH
 	cmp	#$00
-	beq	stackerror
+	beq	stackError
 
 	; ok. we're good to go, restore it
 	ldx	STACKIDX
 	dex
-	lda	stack, x
+	lda	STACK, x
 	sta	KIM_INH
 
 	dex
-	lda	stack, x
+	lda	STACK, x
 	sta	KIM_POINTL
 
 	dex
-	lda	stack, x
+	lda	STACK, x
 	sta	KIM_POINTH
 	stx	STACKIDX
 
@@ -248,16 +253,52 @@ popvalue:
 	rts
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; error code display
+;
+;   load the error code into 
+;	press "GO" to continue past
+errorLoop:
+	; push the current number to store it aside
+	jsr	pushNoCheck	; push POINTH/POINTL/INH
+
+	; update the display...  will be EE NN 5d
+	lda	#$EE
+	sta	KIM_POINTH
+
+	lda	#$42
+	sta	KIM_POINTL
+
+	lda	#$5D
+	sta	KIM_INH
+
+	; display the above, repeat until [GO] is pressed
+:	jsr	SCANDS		; display the new stuff
+	jsr	GETKEY		; get a keypress
+	sta	KEYBAK		; KeyBak = a
+	cmp	KEY_GO		; was 'go' pressed?
+	bne	:-		; nope, scan again...
+
+	; restore the display and return
+	jsr	popValue	; pop POINTH/POINTL/INH
+	jsr	SCANDS		; display the new stuff
+	rts			; return
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; rework this ;;;;;
+
 ; show a stack error
 ;  EExx 5D	("S"tack "D"epth)
-stackerror:
+stackError:
+	;; flesh this out more
 	lda	#$EE
 	sta	KIM_POINTH
 	jmp	sstb
 
 ; show the stack in this format:
 ;  00xx 5D	("S"tack "D"epth)
-showstack:
+showStack:
 	lda	#$00
 	sta	KIM_POINTH
 sstb:
@@ -268,5 +309,3 @@ sstb:
 	jsr	SCANDS		; and show it
 	rts
 
-; since we're loaded into ram, we'll store the stack here:
-stack:
