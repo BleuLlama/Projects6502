@@ -24,11 +24,6 @@
 ;   .define VERSIONL #02  ; /
 
 
-; for standard, we'll start at 0200, standard start location for KIM
-.code
-.org $0200
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; entrypoint
 ;  - this is where the code will start from

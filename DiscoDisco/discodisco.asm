@@ -7,6 +7,7 @@
 UseVideoDisplay0 = 1
 
 .include "KimDefs.asm"
+.include "KimCode200.asm"
 .include "KimLib.asm"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -40,6 +40,7 @@ UseVideoDisplay0 = 1 ; video display 0
 ; include our support defines and libraries
 
 .include "KimDefs.asm"
+.include "KimCode200.asm"
 .include "KimLib.asm"
 
 

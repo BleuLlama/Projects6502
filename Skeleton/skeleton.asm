@@ -8,6 +8,7 @@ UseVideoDisplay0 = 1
 
 ; include our functions
 .include "KimDefs.asm"
+.include "KimCode200.asm"
 .include "KimLib.asm"
 
 ;; a little bit of ram we use

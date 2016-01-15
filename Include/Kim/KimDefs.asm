@@ -118,5 +118,25 @@ RANDOM	 = $EE	; Read: new random value each call
 
 RASTER	= $4000	; base of raster memory (on 6502.org this is at $0200)
 
+.define   COLOR_BLACK		#$00
+.define   COLOR_DKGRAY		#$01
+.define   COLOR_LTGRAY		#$02
+.define   COLOR_WHITE		#$03
+
+.define   COLOR_RED		#$04
+.define   COLOR_DKRED		#$05
+.define   COLOR_BROWN		#$06
+.define   COLOR_ORANGE		#$07
+.define   COLOR_YELLOW		#$08
+
+.define   COLOR_GREEN		#$09
+.define   COLOR_DKGREEN		#$0A
+.define   COLOR_BLUGREEN	#$0B
+.define   COLOR_CYAN		#$0C
+
+.define   COLOR_BLUE		#$0D
+.define   COLOR_VIOLET		#$0E
+.define   COLOR_PURPLE		#$0F
+
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
 
