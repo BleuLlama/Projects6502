@@ -5,14 +5,15 @@
 
 SUBDIRS := \
 	Skeleton \
+	Simple \
 	\
 	DiscoDisco \
 	VideoTest \
 	GameOfLife \
 	FBOK_A FBOK_B FBOK_C FBOK_D \
 	\
-	LlamaCalc 
-	
+	LlamaCalc \
+	RLETest
 
 all: clean
 

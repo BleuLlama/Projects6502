@@ -37,7 +37,7 @@ main:
 	lda	COLOR_DKGRAY
 	jsr	fillscr
 
-	jsr	rleRender
+	jsr	rleRenderSprite
 
 : 	jmp	:-
 
@@ -47,7 +47,7 @@ IMAGE  = $22
 COLOR  = $24
 REPS   = $25
 
-rleRender:
+rleRenderSprite:
 	; setup IMAGE to point to image to be drawn
 	lda	#<stripesRLE
 	sta	IMAGE
@@ -59,6 +59,7 @@ rleRender:
 	rts
 
 rleDecoder:
+	; 0.A Adjust the start position for the X,Y position passed in
 	; setup "SCREEN" to point to raster data ram
 	lda	#<RASTER
 	sta	SCREEN
@@ -90,7 +91,7 @@ rleDecoder:
 	adc	SCREEN	
 	sta	SCREEN
 
-	; initialize our loop variables...
+	; 0.B initialize our loop variables...
 	sta	COLOR		; color = 0
 	sta	REPS		; reps = 0
 	lda	#0
@@ -104,6 +105,28 @@ rleDecoder:
 ; 	0xnM	repeat color M for N bytes
 
 rleLoop:
+	; 1. if REPS > 0  
+	; 1.a output the color to memory
+	; 1.b advance to next screen pos
+	; 1.c dec REPS
+	; 1.d goto loop
+
+	; 2, if REPS == 0
+	; 2.a get next byte from the image data
+
+	; 3. if byte & 0xF0 nz
+	; 3.a load this into reps
+	; 3.b load the byte into color
+	; 3.c goto loop
+
+	; 4. if byte == 0x00
+	; 4.a  goto DONE
+
+	; 5. if byte == 0x01
+	; 5.a advance cursor to next Y start position
+	; 5.b goto loop
+
+
 	; get the next byte
 	ldx	#0
 	lda	(IMAGE, x)
@@ -111,6 +134,9 @@ rleLoop:
 	; check for commands
 	cmp	#$00
 	beq 	foodone
+
+	COLOR
+	REPS
 
 	; store it to the screen
 	sta	(SCREEN), y
