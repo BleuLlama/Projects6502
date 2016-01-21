@@ -31,6 +31,15 @@ UseVideoDisplay0 = 1 ; video display 0
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; RLE format:
+; 	0xnM	repeat color M for N bytes
+;	0x00	End of image
+;	0x0F	End of row (skip to next start)
+;	0x01	(skip 0x01 pixels)
+;	0x0E	(skip 0x0e pixels)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; main 
 ;  - the library entry point.
 main:
@@ -87,7 +96,7 @@ rleRenderMouse:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 rleAdjustXY:
-	; 0.A Adjust the start position for the X,Y position passed in
+	; Adjust the start position for the X,Y position passed in
 	; setup "SCREEN" to point to raster data ram
 	lda	#<RASTER
 	sta	SCREEN
@@ -121,20 +130,13 @@ rleAdjustXY:
 	sta	SCREEN
 	sta	SCREENBAK 	; set it aside for 0F 
 
-	; 0.B initialize our loop variables...
+	; Initialize our loop variables...
 	lda	#0
 	sta	COLOR		; color = 0
 	sta	REPS		; reps = 0
 	lda	#0
 	tay			; clear Y
 
-
-; RLE format:
-;	0x00	End of image
-;	0x0F	End of row (skip to next start)
-;	0x01	(skip 0x01 pixels)
-;	0x0E	(skip 0x0e pixels)
-; 	0xnM	repeat color M for N bytes
 
 ; main loop to handle image data..
 rleLoop:
@@ -195,11 +197,12 @@ rleNext:
 	and	#$F0
 	bne	rleLoop
 
+	; if flow gets to here, the high nibble is '0', so it's a command
+
 	; check for command $00 - Done with the image
 	lda	COLOR
 	cmp	#$00
 	beq	rleDone
-	
 
 	; check for command $0F - skip to next line
 	lda	COLOR
@@ -240,7 +243,7 @@ rleDone:
 ; Image Data
 
 
-; Commands:
+; Commands: (quick reference)
 ; 00	    - end of image
 ; 01 .. 0e  - skip that many bytes
 ; 0F	    - end of line, advance to next line
