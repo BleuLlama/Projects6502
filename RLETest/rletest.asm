@@ -40,6 +40,7 @@ main:
 	jsr	rleRenderStripes
 
 	jsr 	rleRenderRedGhost
+	jsr 	rleRenderMouse
 
 	rts
 
@@ -68,7 +69,18 @@ rleRenderRedGhost:
 	lda	#>redGhostRLE
 	sta	IMAGE+1
 	ldy	#$0A		; start it at this Y position 00..1f
-	ldx	#$0A		; start at this X position
+	ldx	#$01		; start at this X position
+	jsr	rleAdjustXY
+	rts
+
+rleRenderMouse:
+	; setup IMAGE to point to image to be drawn
+	lda	#<mouseRLE
+	sta	IMAGE
+	lda	#>mouseRLE
+	sta	IMAGE+1
+	ldy	#$08		; start it at this Y position 00..1f
+	ldx	#$11		; start at this X position
 	jsr	rleAdjustXY
 	rts
 
@@ -148,6 +160,17 @@ rleLoop:
 	; go again...
 	jmp	rleLoop
 
+rleSkip:
+	; same as rleLoop. but for skip (no color putting)
+	lda	REPS
+	cmp	#$00		; if REPS == 0, next data byte
+	beq	rleNext
+
+	dec	REPS		; REPS--
+	inc	SCREEN
+	jmp	rleSkip		; and go again.
+
+
 rleNext:
 	; 2, if REPS == 0
 	; 2.a get next byte from the image data
@@ -170,28 +193,32 @@ rleNext:
 	sta	IMAGE+1
 
 
-	; 3. if byte & 0xF0 nz
-	; 3.a load this into reps
-	; 3.b load the byte into color
-	; 3.c goto loop
-
-
 	; 4. if byte == 0x00
 	; 4.a  goto DONE
 	lda	COLOR
 	cmp	#$00
 	beq	rleDone
-
 	
 	; 5. if byte == 0x0F
 	; 5.a advance cursor to next Y start position
 	; 5.b goto loop
-
 	lda	COLOR
 	cmp	#$0F
 	beq	rleNextLine
 
-	jmp	rleLoop
+
+	; 01 .. 0E : repeat skips
+	lda	COLOR
+	and	#$F0
+	bne	rleLoop
+
+	; store the thing in REPS
+	lda	COLOR
+	sta	REPS
+	lda	#$0e
+	sta	COLOR
+	
+	jmp	rleSkip
 	
 
 rleNextLine:
@@ -227,23 +254,29 @@ rleDone:
 ; 
 
 stripesRLE:
-	.byte	$20, $21, $22, $23, $24, $25, $26, $27, $0F
+	.byte	$20, $21, $22, $23, $24, $25, $26, $27
 	.byte	$28, $29, $2A, $2B, $2C, $2D, $2E, $2F, $0F
 
 	.byte	$10, $11, $12, $13, $14, $15, $16, $17, $0F
 	.byte	$18, $19, $1A, $1B, $1C, $1D, $1E, $1F, $0F
-	.byte	$18, $19, $1A, $1B, $1C, $1D, $1E, $1F
+	.byte	$0F
+
+	.byte 	$13, $01, $13, $02, $13, $03, $13, $04, $13
+	.byte	     $05, $13, $06, $13, $0F
+	.byte 	$13, $01, $13, $02, $13, $03, $13, $04, $13
+	.byte	     $05, $13, $06, $13, $0F
+
 	.byte	$00	; END OF IMAGE
 
 
 
 .org $0400
 redGhostRLE:
-	.byte	$50, $44, $0F
-	.byte	$30, $84, $0F
-	.byte	$20, $A4, $0F
-	.byte	$10, $34, $23, $44, $23, $14, $0F
-	.byte	$10, $24, $43, $24, $43, $0F
+	.byte	$05, $44, $0F
+	.byte	$03, $84, $0F
+	.byte	$02, $A4, $0F
+	.byte	$01, $34, $23, $44, $23, $14, $0F
+	.byte	$01, $24, $43, $24, $43, $0F
 	.byte	$34, $23, $2d, $24, $23, $2d, $14, $0F
 	.byte	$34, $23, $2d, $24, $23, $2d, $14, $0F
 	.byte	$44, $23, $44, $23, $24, $0F
@@ -251,27 +284,27 @@ redGhostRLE:
 	.byte	$E4, $0F
 	.byte	$E4, $0F
 	.byte	$E4, $0F
-	.byte	$24, $10, $34, $20, $34, $10, $24, $0F
-	.byte	$14, $30, $24, $20, $24, $30, $14
+	.byte	$24, $01, $34, $02, $34, $01, $24, $0F
+	.byte	$14, $03, $24, $02, $24, $03, $14
 	.byte	$00
 
 
 mouseRLE:
-	.byte	$40, $36, $10, $26, $0F
-	.byte 	$30, $16, $27, $26, $10, $26, $0F
-	.byte 	$30, $16, $37, $16, $10, $26, $0F
-	.byte 	$40, $16, $27, $16, $10, $26, $0F
-	.byte	$50, $66
-	.byte	$40, $36, $20, $36, $10, $17, $0F
-	.byte	$16, $30, $56, $10, $36, $17, $0F
-	.byte	$10, $16, $30, $86, $0F
-	.byte	$10, $16, $40, $56, $17, $0F
-	.byte	$10, $16, $20, $26, $10, $26, $0F
+	.byte	$04, $36, $01, $26, $0F
+	.byte 	$03, $16, $27, $26, $01, $26, $0F
+	.byte 	$03, $16, $37, $16, $01, $26, $0F
+	.byte 	$04, $16, $27, $16, $01, $26, $0F
+	.byte	$05, $66, $0F
+	.byte	$04, $36, $20, $36, $01, $17, $0F
+	.byte	$16, $03, $56, $10, $36, $17, $0F
+	.byte	$01, $16, $03, $86, $0F
+	.byte	$01, $16, $04, $56, $17, $0F
+	.byte	$01, $16, $02, $26, $01, $26, $0F
 
-	.byte	$10, $16, $20, $66, $17, $0F
-	.byte	$10, $16, $40, $46, $27, $0F
-	.byte	$20, $16, $20, $46, $37, $0F
-	.byte	$30, $26, $10, $36, $27, $0F
-	.byte	$80, $26, $0F
-	.byte	$70, $46
+	.byte	$01, $16, $02, $66, $17, $0F
+	.byte	$01, $16, $04, $46, $27, $0F
+	.byte	$02, $16, $02, $46, $37, $0F
+	.byte	$03, $26, $01, $36, $27, $0F
+	.byte	$08, $26, $0F
+	.byte	$07, $46
 	.byte 	$00
