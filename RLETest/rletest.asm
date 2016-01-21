@@ -34,22 +34,22 @@ UseVideoDisplay0 = 1 ; video display 0
 ; main 
 ;  - the library entry point.
 main:
-	lda	COLOR_DKGRAY
-	jsr	fillscr
+	lda	COLOR_DKGRAY		
+	jsr	fillscr			; fill the screen to start fresh
 
-	jsr	rleRenderStripes
-
-	jsr 	rleRenderRedGhost
-	jsr 	rleRenderMouse
+	jsr	rleRenderStripes	; draw the color bars
+	jsr 	rleRenderRedGhost	; draw the red ghost
+	jsr 	rleRenderMouse		; draw the brown mouse
 
 	rts
 
 
-SCREEN    = $20
-SCREENBAK = $22
-IMAGE     = $24
-COLOR     = $26
-REPS      = $27
+; RAM usage (put these wherever in zero page)
+SCREEN    = $20		; pointer to the screen, will be modified
+SCREENBAK = $22		; pointer to the start of each new line
+IMAGE     = $24		; pointer to the RLE image we're displaying
+COLOR     = $26		; current color being spit onto the screen
+REPS      = $27		; number of repetitions left of this color
 
 rleRenderStripes:
 	; setup IMAGE to point to image to be drawn
@@ -132,34 +132,32 @@ rleAdjustXY:
 ; RLE format:
 ;	0x00	End of image
 ;	0x0F	End of row (skip to next start)
-;	0x01	(skip 0x01 pixels) (future)
-;	0x0E	(skip 0x0e pixels) (future)
+;	0x01	(skip 0x01 pixels)
+;	0x0E	(skip 0x0e pixels)
 ; 	0xnM	repeat color M for N bytes
 
+; main loop to handle image data..
 rleLoop:
+	; if there's no reps left, advance to the next byte
 	lda	REPS
 	cmp	#$00
 	beq	rleNext
 
-	; 1. if REPS > 0  
-	; 1.a output the color to memory
-	; 1.b advance to next screen pos
-	; 1.c dec REPS
-	; 1.d goto loop
-
-	; ok. more to do
+	; okay, we have more colors to draw
 	dec	REPS		; REPS--
 
-	; output color
+	; output the color to the screen buffer
 	lda	COLOR
 	sta	(SCREEN), y
 
-	; increment position
+	; increment screen position
 	inc	SCREEN
 
-	; go again...
+	; and repeat
 	jmp	rleLoop
 
+; handle skipping over screen data
+; optimization: instead of this, just add in the number of skips
 rleSkip:
 	; same as rleLoop. but for skip (no color putting)
 	lda	REPS
@@ -171,19 +169,19 @@ rleSkip:
 	jmp	rleSkip		; and go again.
 
 
+; advance to the next byte in the image data block
 rleNext:
-	; 2, if REPS == 0
-	; 2.a get next byte from the image data
+	; get the next byte, store it in color and number of reps
 	ldx	#0
 	lda	(IMAGE, x)	; A = current image pointer item
-	sta	COLOR
+	sta	COLOR		; COLOR = low nibble of data
 	lsr
 	lsr
 	lsr
 	lsr
-	sta	REPS
+	sta	REPS		; REPS = high nibble of data
 
-	; inc IMAGE but adjust for bank switchover
+	; inc IMAGE but adjust for bank switchover too (carry)
 	clc
 	lda	IMAGE
 	adc	#$01
@@ -192,35 +190,30 @@ rleNext:
 	adc	#$00
 	sta	IMAGE+1
 
+	; check that it's not a commandable byte...
+	lda	COLOR		; (COLOR contains the current data byte)
+	and	#$F0
+	bne	rleLoop
 
-	; 4. if byte == 0x00
-	; 4.a  goto DONE
+	; check for command $00 - Done with the image
 	lda	COLOR
 	cmp	#$00
 	beq	rleDone
 	
-	; 5. if byte == 0x0F
-	; 5.a advance cursor to next Y start position
-	; 5.b goto loop
+
+	; check for command $0F - skip to next line
 	lda	COLOR
 	cmp	#$0F
 	beq	rleNextLine
 
 
-	; 01 .. 0E : repeat skips
-	lda	COLOR
-	and	#$F0
-	bne	rleLoop
-
-	; store the thing in REPS
+	; it's gotta be $01-$0E - skip that number of bytes
 	lda	COLOR
 	sta	REPS
-	lda	#$0e
-	sta	COLOR
-	
 	jmp	rleSkip
 	
 
+; $0F encountered. Skip to start the next line
 rleNextLine:
 	; add $20 to the last known backup, and use that
 	clc
@@ -237,21 +230,28 @@ rleNextLine:
 	jmp 	rleNext
 
 
+; $00 encountered. We're done. return.
 rleDone:
 	rts
 
 
-; 0F	- end of line
-; 00	- end of image
 
-; 0 black
-; 3 white
-; 4 red
-; D blue
+; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
+; Image Data
 
-; 6 brown
-; 7 orange
-; 
+
+; Commands:
+; 00	    - end of image
+; 01 .. 0e  - skip that many bytes
+; 0F	    - end of line, advance to next line
+
+; Colors:
+
+;	0	1	2	3	4	5	6	7
+;	Black	DkGray	LtGray	White	Red	DkRed	Brown	Orange
+;
+;	8	9	A	B	C	D	E	F
+;	Yellow	Green	DkGreen	G Blu	Cyan	Blue	Violet	Purple
 
 stripesRLE:
 	.byte	$20, $21, $22, $23, $24, $25, $26, $27
@@ -269,8 +269,6 @@ stripesRLE:
 	.byte	$00	; END OF IMAGE
 
 
-
-.org $0400
 redGhostRLE:
 	.byte	$05, $44, $0F
 	.byte	$03, $84, $0F
