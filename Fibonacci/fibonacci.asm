@@ -1,16 +1,21 @@
 ; fibonacci sequence printer
+;  displays the fibonacci sequence through the point where it is 7 digits big
+;  also experiments with Decimal/Hex operations
 ;
-; 2016-01-24
-;  Experiments for learning BCD routines
-; 
 ; Scott Lawrence - yorgle@gmail.com
+; 2016-01-24
+;
+; decimal:
+; 0 1 1 2 3 5 8 13 21 34 55 89 144
+; Hex:
+; 0 1 1 2 3 5 8 D 15 22 37 59 90 E9 179
 
 
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
 ; Configuration
 
-VERSIONL = 0
-VERSIONH = 1
+VERSIONH = 0
+VERSIONL = 2
 
 ; define the functionality we want to use in the library
 UseVideoDisplay0 = 1
@@ -54,7 +59,7 @@ setup:
 	sta	VALJ+1		; VALJ =    00
 	sta	VALJ+2		; VALJ = 00
 
-	cld			; HEX mode
+	;cld			; HEX mode
 	sed			; Decimal mode (BCD)
 
 ; since the Fib sequence starts with two values that don't follow
