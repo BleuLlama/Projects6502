@@ -3,6 +3,12 @@
 ; this is my first ever 6502 program!
 ; Scott Lawrence - yorgle@gmail.com
 
+
+; set the version info
+VERSIONL = 0
+VERSIONH = 1
+
+
 ; define the functionality we want to use in the library
 UseVideoDisplay0 = 1
 
@@ -38,13 +44,13 @@ loop:
 ; just set the display
 digits:
 	lda	#$23
-	sta	POINTH	; left two digits
+	sta	KIM_POINTH	; left two digits
 	lda	#$AB
-	sta	POINTL	; left two digits
+	sta	KIM_POINTL	; left two digits
 	lda	#$EF
-	sta	INH	; left two digits
+	sta	KIM_INH		; left two digits
 
-	jsr	SCANDS	; and show it
+	jsr	SCANDS		; and show it
 	rts
 
 

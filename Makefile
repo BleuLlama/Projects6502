@@ -10,6 +10,7 @@ SUBDIRS := \
 	DiscoDisco \
 	VideoTest \
 	GameOfLife \
+	Fibonacci \
 	FBOK_A FBOK_B FBOK_C FBOK_D \
 	\
 	LlamaCalc \
