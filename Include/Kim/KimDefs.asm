@@ -10,6 +10,22 @@ GETKEY  = $1F6A	; ROMFN: A>15 = bad key, otherwise, it's the key
 
 ; key codes
 .define KEY_NONE #$15
+.define KEY_0    #$00
+.define KEY_1    #$01
+.define KEY_2    #$02
+.define KEY_3    #$03
+.define KEY_4    #$04
+.define KEY_5    #$05
+.define KEY_6    #$06
+.define KEY_7    #$07
+.define KEY_8    #$08
+.define KEY_9    #$09
+.define KEY_A    #$0a
+.define KEY_B    #$0b
+.define KEY_C    #$0c
+.define KEY_D    #$0d
+.define KEY_E    #$0e
+.define KEY_F    #$0F
 .define  KEY_SPECIAL_MASK #$10
 .define   KEY_AD #$10
 .define   KEY_DA #$11

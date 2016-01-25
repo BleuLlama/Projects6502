@@ -9,6 +9,8 @@
 ; 0 1 1 2 3 5 8 13 21 34 55 89 144
 ; Hex:
 ; 0 1 1 2 3 5 8 D 15 22 37 59 90 E9 179
+;
+;  Start it and press "GO" to advance to the next number in the sequence...
 
 
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
@@ -170,6 +172,8 @@ displayAndWait:
 	jsr	displayResult	; display the result to the LED display
 	jsr	displayColor	; display the result to the video display
 	jsr	waitForPress	; wait for the user to press something
+	cmp	KEY_GO
+	bne	displayAndWait	; only continue if "GO" was hit
 	rts
 
 
