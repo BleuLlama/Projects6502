@@ -118,6 +118,26 @@ clsloop:
 
 	rts
 
+gfxNoise:
+        ; display some nosie to the lcd
+        ldx     #$80
+:       lda     RANDOM
+        sta     RASTER,Y
+        ldy     RANDOM
+        lda     RANDOM
+        sta     RASTER+$100,Y
+        ldy     RANDOM
+        lda     RANDOM
+        sta     RASTER+$200,Y
+        ldy     RANDOM
+        lda     RANDOM
+        sta     RASTER+$300,Y
+        inx
+        cmp     #0
+        bne     :-
+	rts
+
+
 .endif ; UseVideoDisplay0
 
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 

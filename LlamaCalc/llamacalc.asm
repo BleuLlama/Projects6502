@@ -15,13 +15,45 @@
 ; 	PC/+ : pop/push current value to stack
 ;	GO   : continue (when in an error or startup display)
 
+; New version:
+;	A--F : enter new number
+;	+    : push to stack
+;	PC   : pop from stack
+;	GO   : Switch to/from menu mode
+;	Menu mode:
+;	 B   : Convert result to binary (base 16)
+;	 D   : Convert result to decimal (base 10)
+;	 +   : pop stack to operand, add to result
+;	 E   : shift left one bit
+;	 F   ; shift right one bit
+
+
+; Internally:
+;	INH POINTH, POINTL  - displayed value / error display
+;	RESULT	- displayed result
+;	STACKTOP - item at the front of the stack
+;	STACK	- bottom of the stack
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; POP:     item is removed from stack, placed in RESULT
+; PUSH:    RESULT is copied to the stack
+; SHIFTL:  RESULT is << 1
+; SHIFTR:  RESULT is >> 1
+; MATH:    RESULT = RESULT (math) STACK
+;	   I = RESULT
+;	   POP
+;	   J = RESULT
+;	   RESULT = I (math) J
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Version history
 
 .define VERSIONH #$00
-.define VERSIONL #$06
+.define VERSIONL #$07
 
 ; v 00 06 - Better, more flexible error display with backup and 'GO' press
 ; v 00 05 - some error display
@@ -47,54 +79,65 @@ UseVideoDisplay0 = 1 ; video display 0
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RAM used
 
-KEYBAK	     = $10
-SHIFTSCRATCH = $11	; shifter needs this when it's running.
-STACKDEPTH   = $12
-STACKIDX     = $13
-BAK_INH	     = $14
-BAK_POINTL   = $15
-BAK_POINTH   = $16
+;	for multibyte, indexing is   22 11 00
 
-STACK        = $20	; uses maxdepth * 3 bytes (goes up)
+KEYBAK		= $10
+SHIFTSCRATCH	= $11	; shifter needs this when it's running.
+
+RESULT0		= $12
+RESULT1		= $13
+RESULT2		= $14
+
+I0		= $15
+I1		= $16
+I2		= $17
+
+J0		= $18
+J1		= $19
+J2		= $1A
+
+
+STACKDEPTH	= $1E	; current depth of the stack
+STACKIDX	= $1F	; current pointer into the stack
+
+STACK		= $20	; uses maxdepth * 3 bytes (goes up)
+
+.define STACKMAX #$08
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; main 
 ;  - the library entry point.
 main:
+	; reset the stack and variables
+	; refresh the display
+	; display the version splash
+	; wait for GO
+
+	; mode == number: enter number
+	; mode == menu: select option
+
 	lda	#0
 	sta	STACKDEPTH	; reset stack depth
 
-	sta	BAK_INH		; start with 00 00 00 
-	sta	BAK_POINTL
-	sta	BAK_POINTH
+	sta	RESULT0		; initialize our result, I and J
+	sta	RESULT1
+	sta	RESULT2
+
+	sta	I0
+	sta	I1
+	sta	I2
+
+	sta	J0
+	sta	J1
+	sta	J2
 
 	; display version to screen
 	jsr	displayVersion	; display the version number
-
-.if .defined(UseVideoDisplay0)
-	; display some nosie to the lcd
-	ldx	#$80
-:	lda	RANDOM
-	sta	RASTER,Y
-	ldy	RANDOM
-	lda	RANDOM
-	sta	RASTER+$100,Y
-	ldy	RANDOM
-	lda	RANDOM
-	sta	RASTER+$200,Y
-	ldy	RANDOM
-	lda	RANDOM
-	sta	RASTER+$300,Y
-	inx
-	cmp	#0
-	bne	:-
-
+	jsr	gfxNoise	; display noise stuff
 	jsr	cls		; clear the screen black
-.endif
 
 	; now clear the display, and go to our key input loop
-	jsr	waitForGO
 	jsr	cls7seg
 	jmp	keyInput	; press a key, get a color
 	jsr	end		; end it
@@ -121,49 +164,11 @@ handleControlKey:
 	lda	KEYBAK		; restore A
 
 	cmp	KEY_AD		; ADdress button
-	beq	handle_AD
 	cmp	KEY_DA		; DAta button
-	beq	handle_DA
 	cmp	KEY_PC		; PC button
-	beq	handle_PC
 	cmp	KEY_PL		; PLus button
-	beq	handle_PL
 	cmp	KEY_GO		; GO button
-	beq	handle_GO
 	jmp	keyInput	; repeat
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; control key handlers
-
-; AD- shift left by one bit
-handle_AD:
-	clc
-	rol	KIM_INH
-	rol	KIM_POINTL
-	rol	KIM_POINTH
-	jsr	SCANDS
-	jmp	keyInput
-
-; DA- shift right by one bit
-handle_DA:
-	clc
-	ror	KIM_POINTH
-	ror	KIM_POINTL
-	ror	KIM_INH
-	jsr	SCANDS
-	jmp	keyInput
-
-handle_PC:
-	jsr	popValue
-	jmp	keyInput
-
-handle_PL:
-	jsr	pushValue
-	jmp	keyInput
-
-handle_GO:
-	jmp	keyInput
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -175,19 +180,19 @@ keyShiftIntoDisplay:
 	ldx	#$04		; 4 bits to shift
 
 :	clc			; rol pulls from carry, so clear it
-	rol	KIM_INH		; shift this byte by 1
-	rol	KIM_POINTL	; shift this one, shift in carry from INH
-	rol	KIM_POINTH	; shift this one, shift in carry from POINTL
+	rol	RESULT0		; shift this byte by 1
+	rol	RESULT1		; shift this one, shift in carry from INH
+	rol	RESULT2		; shift this one, shift in carry from POINTL
 	dex			; x = x - 1
 	cpx	#$00		; x == 0?
 	bne	:-		; mot 0, repeat loop
 
 	; now shove the content in
 	lda	KEYBAK		; restore key 00 .. 0F to A
-	ora	KIM_INH		; A = A | INH
-	sta	KIM_INH		; INH = A
+	ora	RESULT0		; A = A | INH
+	sta	RESULT0		; INH = A
 
-	jsr	SCANDS		; and display it to the screen
+	jsr	displayResult	; and display it to the screen
 
 .if .defined(UseVideoDisplay0)
 	; and display the color
@@ -205,130 +210,125 @@ keyShiftIntoDisplay:
 	; v1 wouldn't work
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Stack functions
+; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
+; display
+	
+displayResult:
+	lda	RESULT0
+	sta	KIM_INH
+	lda	RESULT1
+	sta	KIM_POINTL
+	lda	RESULT2
+	sta	KIM_POINTH
+	jsr	SCANDS
+	rts
 
-pushValue:
+
+; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
+; bit shift
+
+shiftL:
+	clc
+	rol	RESULT0
+	rol	RESULT1
+	rol	RESULT2
+	rts
+
+shiftR:
+	clc
+	ror	RESULT2
+	ror	RESULT1
+	ror	RESULT0
+	rts
+
+
+; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
+; result, i, j swaps
+resultToI:
+	lda	RESULT0
+	sta	I0
+	lda	RESULT1
+	sta	I1
+	lda	RESULT2
+	sta	I2
+	rts
+
+resultToJ:
+	lda	RESULT0
+	sta	J0
+	lda	RESULT1
+	sta	J1
+	lda	RESULT2
+	sta	J2
+	rts
+
+jToResult:
+	lda	J0
+	sta	RESULT0
+	lda	J1
+	sta	RESULT1
+	lda	J1
+	sta	RESULT2
+	rts
+
+iToResult:
+	lda	I0
+	sta	RESULT0
+	lda	I1
+	sta	RESULT1
+	lda	I1
+	sta	RESULT2
+	rts
+
+; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
+; Stack operations
+stackPush:
 	; make sure it's ok to do
 	lda	STACKDEPTH
-	cmp	#$05
-	beq	stackError
+	cmp	STACKMAX
+	;beq	stackError
 
 	; ok. we're good to go, store it!
-	lda	KIM_POINTH
+	lda	RESULT0
 	ldx	STACKIDX
 	sta	STACK, x
 	inx
 
-	lda	KIM_POINTL
+	lda	RESULT1
 	sta	STACK, x
 	inx
 
-	lda	KIM_INH
+	lda	RESULT2
 	sta	STACK, x
 	inx
 
 	stx	STACKIDX
 
-	; and display the stack level
+	; and adjust the stack depth
 	inc	STACKDEPTH
 	rts
 
-popValue:
+stackPop:
 	; make sure it's ok to do
 	lda	STACKDEPTH
-	cmp	#$00
-	beq	stackError
+	cmp	STACKMAX
+	;beq	stackError
 
 	; ok. we're good to go, restore it
 	ldx	STACKIDX
 	dex
 	lda	STACK, x
-	sta	KIM_INH
+	sta	RESULT2
 
 	dex
 	lda	STACK, x
-	sta	KIM_POINTL
+	sta	RESULT1
 
 	dex
 	lda	STACK, x
-	sta	KIM_POINTH
+	sta	RESULT0
 	stx	STACKIDX
 
-	; and display the value
+	; and adjust the stack depth
 	dec	STACKDEPTH
-	jsr	SCANDS
 	rts
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; store aside the display for the moment
-backupDisplay:
-	pha			; push A
-	lda	KIM_INH
-	sta	BAK_INH
-	lda	KIM_POINTH
-	sta	BAK_POINTH
-	lda	KIM_POINTL
-	sta	BAK_POINTL
-	pla			; pop A
-	rts
-
-restoreDisplay:
-	pha			; push A
-	lda	BAK_INH
-	sta	KIM_INH
-	lda	BAK_POINTH
-	sta	KIM_POINTH
-	lda	BAK_POINTL
-	sta	KIM_POINTL
-	pla			; pop A
-	rts
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; error code display routines
-;
-;   load the error code into A, call 'errorShow
-;	press "GO" to continue past
-errorShow:
-	; push the current number to store it aside
-	jsr	backupDisplay	; backup POINTH/POINTL/INH
-
-	; update the display...  will be EE 00 (A)
-	sta	KIM_INH
-
-errorLoop00:
-	lda	#$00
-	sta	KIM_POINTL
-
-errorLoopEE:
-	lda	#$EE
-	sta	KIM_POINTH
-
-waitForGO:
-	; display the above, repeat until [GO] is pressed
-	jsr	SCANDS		; display the new stuff
-	jsr	GETKEY		; get a keypress
-	sta	KEYBAK		; KeyBak = a
-	cmp	KEY_GO		; was 'go' pressed?
-	bne	waitForGO	; nope, scan again...
-
-	; restore the display and return
-	jsr	restoreDisplay	; pop POINTH/POINTL/INH
-	jsr	SCANDS		; display the new stuff
-	rts			; return
-
-; stackError
-;   displays the current stack depth
-;		EE (depth) 5D
-stackError:
-	jsr	backupDisplay
-
-	lda	#$5D
-	sta	KIM_INH
-
-	lda	STACKDEPTH
-	sta	KIM_POINTL
-
-	; then continue above
-	jmp	errorLoopEE
