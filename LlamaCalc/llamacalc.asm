@@ -122,32 +122,24 @@ STACK		= $20	; uses maxdepth * 3 bytes (goes up)
 ; main 
 ;  - the library entry point.
 main:
-	; reset the stack and variables
-	; refresh the display
-	; display the version splash
-	; wait for GO
-
-	; mode == number: enter number
-	; mode == menu: select option
-
+	; reset the stack, variables, and mode
 	lda	#0
 	sta	STACKDEPTH	; reset stack depth
 
-	sta	DISPLAYMODE	; display version
+	sta	DISPLAYMODE	; display 0 (splash)
 
-	sta	RESULT0		; initialize our result, I and J
+	sta	RESULT0		; initialize our result
 	sta	RESULT1
 	sta	RESULT2
 
-	sta	I0
+	sta	I0		; initialize I
 	sta	I1
 	sta	I2
 
-	sta	J0
+	sta	J0		; initialize J
 	sta	J1
 	sta	J2
 
-	; display version to screen
 	jsr	display		; display the version number
 	jsr	gfxNoise	; display noise stuff
 	jsr	cls		; clear the screen black
@@ -166,6 +158,7 @@ waitForGo:
 	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; at this point, we're in RESULT mode
 keyInput:
 	jsr	display		; refresh the display
 	; check for key
@@ -173,9 +166,6 @@ keyInput:
 	sta	KEYBAK		; KeyBak = a
 	cmp	KEY_NONE 	; $15 is "no press"
 	beq	keyInput	; then there's no press, check again
-
-	; store aside a backup of the press
-	;jmp	keyShiftIntoDisplay
 
 	; check for AD/DA/PC/+ keys
 	and	KEY_SPECIAL_MASK
@@ -192,10 +182,16 @@ handleControlKey:
 	cmp	KEY_PL		; PLus button (push)
 	beq	handle_PL
 
+	cmp	KEY_GO		; GO button (menu)
+	beq	handle_GO
+
 	cmp	KEY_AD		; ADdress button
+		; no function yet
+
 	cmp	KEY_DA		; DAta button
-	cmp	KEY_GO		; GO button
-	jmp	keyInput	; repeat
+		; no function yet
+
+	jmp	keyInput	; dunno what it was. ignore and repeat
 
 
 handle_PL:
@@ -204,11 +200,32 @@ handle_PL:
 
 handle_PC:
 	jsr	stackPop	; pop the stack to the result
+
 handle_error:
 	lda	ERRORCODE
 	cmp	ERROR_NONE	; were there no errors?
 	beq	keyInput	; ok. then display the key
 	jmp	waitForGo	; wait for [GO] pressed
+
+handle_GO:
+	; menu display
+	lda	DISPLAY_MODE_MENU
+	sta	DISPLAYMODE
+menuLoop:
+	jsr	display
+
+	jsr	GETKEY		; get a keypress
+	cmp	KEY_GO
+	beq	exitMenu
+	jmp	menuLoop	; dunno what that was, repeat.
+
+
+exitMenu:
+	; exit the menu mode
+	lda	DISPLAY_MODE_RESULT
+	sta	DISPLAYMODE
+	jmp	keyInput
+	
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -291,10 +308,10 @@ displaySplash:
 	rts
 
 displayMenu:
-	lda	#$99
-	sta	KIM_POINTH
 	lda	#$00
+	sta	KIM_POINTH
 	sta	KIM_POINTL
+	lda	#$99
 	sta	KIM_INH
 	jsr	SCANDS
 	rts
