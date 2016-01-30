@@ -97,11 +97,24 @@ J1		= $19
 J2		= $1A
 
 
+ERRORCODE	= $1C
+.define ERROR_NONE		#$00
+.define ERROR_STACK_FULL	#$5F
+.define ERROR_STACK_EMPTY	#$5E
+
+
+DISPLAYMODE	= $1D	; 0 = splash, 1 = result, 2 = mode
+.define DISPLAY_MODE_SPLASH	#$00
+.define DISPLAY_MODE_RESULT	#$01
+.define DISPLAY_MODE_MENU	#$02
+.define DISPLAY_MODE_ERROR	#$FF
+
 STACKDEPTH	= $1E	; current depth of the stack
 STACKIDX	= $1F	; current pointer into the stack
 
 STACK		= $20	; uses maxdepth * 3 bytes (goes up)
 
+.define STACKMIN #$00
 .define STACKMAX #$08
 
 
@@ -120,6 +133,8 @@ main:
 	lda	#0
 	sta	STACKDEPTH	; reset stack depth
 
+	sta	DISPLAYMODE	; display version
+
 	sta	RESULT0		; initialize our result, I and J
 	sta	RESULT1
 	sta	RESULT2
@@ -133,18 +148,26 @@ main:
 	sta	J2
 
 	; display version to screen
-	jsr	displayVersion	; display the version number
+	jsr	display		; display the version number
 	jsr	gfxNoise	; display noise stuff
 	jsr	cls		; clear the screen black
 
-	; now clear the display, and go to our key input loop
-	jsr	cls7seg
-	jmp	keyInput	; press a key, get a color
-	jsr	end		; end it
+	; wait for 'go' to advance to result mode
+waitForGo:
+	jsr	display
+	jsr	GETKEY
+	cmp	KEY_GO
+	bne	waitForGo
 
+	; restore result mode
+	lda	DISPLAY_MODE_RESULT
+	sta	DISPLAYMODE
+	; fall through to the key input loop
+	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 keyInput:
+	jsr	display		; refresh the display
 	; check for key
 	jsr	GETKEY		; get a keypress
 	sta	KEYBAK		; KeyBak = a
@@ -163,12 +186,29 @@ keyInput:
 handleControlKey:
 	lda	KEYBAK		; restore A
 
+	cmp	KEY_PC		; PC button (pop)
+	beq	handle_PC
+
+	cmp	KEY_PL		; PLus button (push)
+	beq	handle_PL
+
 	cmp	KEY_AD		; ADdress button
 	cmp	KEY_DA		; DAta button
-	cmp	KEY_PC		; PC button
-	cmp	KEY_PL		; PLus button
 	cmp	KEY_GO		; GO button
 	jmp	keyInput	; repeat
+
+
+handle_PL:
+	jsr	stackPush	; push the result on the stack
+	jmp	handle_error
+
+handle_PC:
+	jsr	stackPop	; pop the stack to the result
+handle_error:
+	lda	ERRORCODE
+	cmp	ERROR_NONE	; were there no errors?
+	beq	keyInput	; ok. then display the key
+	jmp	waitForGo	; wait for [GO] pressed
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -196,8 +236,8 @@ keyShiftIntoDisplay:
 
 .if .defined(UseVideoDisplay0)
 	; and display the color
-	lda	KEYBAK
-	jsr	fillscr		; fill the screen
+;	lda	KEYBAK
+;	jsr	fillscr		; fill the screen
 .endif
 
 	jmp	keyInput	; next!
@@ -212,6 +252,23 @@ keyShiftIntoDisplay:
 
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
 ; display
+
+; I decided to have one central display updating routine. this means
+; that everything can be stupider, but it uses another byte of memory
+; to store the mode.  That mode is also used for the input menu too.
+
+display:
+	lda	DISPLAYMODE
+	cmp	DISPLAY_MODE_SPLASH
+	beq	displaySplash
+
+	cmp	DISPLAY_MODE_MENU
+	beq	displayMenu
+
+	cmp	DISPLAY_MODE_ERROR
+	beq	displayError
+
+	; display result (fall through)
 	
 displayResult:
 	lda	RESULT0
@@ -223,6 +280,39 @@ displayResult:
 	jsr	SCANDS
 	rts
 
+displaySplash:
+	lda	#$CA
+	sta	KIM_POINTH
+	lda	#$1C
+	sta	KIM_POINTL
+	lda	VERSIONL
+	sta	KIM_INH
+	jsr	SCANDS
+	rts
+
+displayMenu:
+	lda	#$99
+	sta	KIM_POINTH
+	lda	#$00
+	sta	KIM_POINTL
+	sta	KIM_INH
+	jsr	SCANDS
+	rts
+
+displayError:
+	lda	#$EE
+	sta	KIM_POINTH
+	sta	KIM_POINTL
+	lda	ERRORCODE
+	sta	KIM_INH
+	jsr	SCANDS
+	rts
+
+errorClear:
+	lda	ERROR_NONE
+	sta	ERRORCODE
+	rts
+	
 
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
 ; bit shift
@@ -283,10 +373,15 @@ iToResult:
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
 ; Stack operations
 stackPush:
+	lda	ERROR_STACK_FULL	; preload for error code
+	sta	ERRORCODE
+
 	; make sure it's ok to do
 	lda	STACKDEPTH
-	cmp	STACKMAX
-	;beq	stackError
+	cmp	STACKMAX		; full stack?
+	beq	stackError		; yep! Can't push any more!
+
+	jsr	errorClear 		; clear error codes
 
 	; ok. we're good to go, store it!
 	lda	RESULT0
@@ -310,9 +405,14 @@ stackPush:
 
 stackPop:
 	; make sure it's ok to do
+	lda	ERROR_STACK_EMPTY	; preload for error code
+	sta	ERRORCODE
+
 	lda	STACKDEPTH
-	cmp	STACKMAX
-	;beq	stackError
+	cmp	STACKMIN		; empty stack?
+	beq	stackError		; yep. Can't pop from empty!
+
+	jsr	errorClear 		; clear error codes
 
 	; ok. we're good to go, restore it
 	ldx	STACKIDX
@@ -332,3 +432,9 @@ stackPop:
 	; and adjust the stack depth
 	dec	STACKDEPTH
 	rts
+
+stackError:
+	lda	DISPLAY_MODE_ERROR
+	sta	DISPLAYMODE
+	rts
+
