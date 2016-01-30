@@ -113,3 +113,11 @@
 	you to Result mode.
 
 	Here's a list of error codes:
+
+		EE EE  00	No error. ;)
+
+		EE EE  5F	Stack Full	(5->S, F->Full)
+				You tried to push an item onto a full stack
+
+		EE EE  5E	Stack Empty	(5->S, E->Empty)
+				You tried to pop an item from a full stack
