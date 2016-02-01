@@ -112,12 +112,14 @@
 
 	[GO]	return to Result mode
 
-	[B]	*B*inary conversion (HEX) (future)
-		convert the decimal value shown to hex
+	[B]	*B*inary conversion (BCD To HEX) (future)
+		(assumes RESULT is already base 10)
+		Result = convertToHex( Result )
 		00 01 11 -> 00 00 6F
 
-	[D]	*D*ecimal conversion (BCD) (future)
-		Result = convertToDecimal( Result )
+	[D]	*D*ecimal conversion (Hex To BCD) 
+		(assumes RESULT is already base 16)
+		Result = convertToBCD( Result )
 		00 01 11 -> 00 02 73
 
 	[A]	*A*dd the top of stack to the result

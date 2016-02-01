@@ -125,6 +125,21 @@ main:
 	jsr	cls		; clear the screen black
 .endif
 
+	jmp	waitForGo	; skip the test.
+	; test a function
+test:
+	lda	DISPLAY_MODE_RESULT
+	sta	DISPLAYMODE
+	lda	#$80
+	sta	RESULT2
+	lda	#$00
+	sta	RESULT1
+	lda	#$00
+	sta	RESULT0
+
+	jmp	fcnToBCD
+
+
 	; wait for 'go' to advance to result mode
 waitForGo:
 	jsr	display
@@ -206,20 +221,14 @@ menuLoop:
 	cmp	KEY_B
 	beq	fcnHex		; [B] -> result to Hex
 	cmp	KEY_D
-	beq	fcnDecimal	; [D] -> result to Decimal
+	beq	fcnToBCD	; [D] -> result to Decimal
 
 	cmp	KEY_E
 	beq	fcnShiftLeft	; [E] -> Shift Left
 	cmp	KEY_F
 	beq	fcnShiftRight	; [F] -> Shift Right
 
-	cmp	KEY_A
-	beq	fcnAdd		; [A] -> Add
-
-	cmp	KEY_5
-	beq	fcnSubtract	; [5] -> Subtract
-
-	jmp	menuLoop	; dunno what that was, repeat.
+	jmp	checkKeysForMath	; jump below for short jumps
 
 
 ; exit the menu mode
@@ -228,13 +237,40 @@ exitMenu:
 	sta	DISPLAYMODE
 	jmp	keyInput
 
+	
 
-; convert result to decimal
-fcnDecimal:
+; convert result to hex  (Result is base 10, convert to base 16)
+fcnHex:
 	jmp	exitMenu	; and exit out of menu mode
 
-; convert result to hex
-fcnHex:
+; convert result to BCD  (Result is base 16, convert to base 10)
+fcnToBCD: ; binary to BCD
+	jsr	resultToI	; I = RESULT
+
+	sed			; switch to decimal mode
+	lda	#$0		; clear result
+	sta	RESULT0
+	sta	RESULT1
+	sta	RESULT2
+	ldx	#24
+cnvbit:
+	asl	I0		; shift out a bit
+	rol	I1
+	rol	I2
+
+	lda	RESULT0
+	adc	RESULT0		; add it into the result
+	sta	RESULT0
+	lda	RESULT1		; propagate carry
+	adc	RESULT1
+	sta	RESULT1
+	lda	RESULT2		; propagate carry
+	adc	RESULT2
+	sta	RESULT2
+	dex
+	bne	cnvbit
+
+	cld			; binary mode
 	jmp	exitMenu	; and exit out of menu mode
 
 ; shift result left one bit
@@ -274,6 +310,16 @@ fcnStackError:
 	jmp	handle_GO
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+checkKeysForMath:
+	cmp	KEY_A
+	beq	fcnAdd		; [A] -> Add
+
+	cmp	KEY_5
+	beq	fcnSubtract	; [5] -> Subtract
+
+	jmp	menuLoop	; dunno what that was, repeat.
+
 fcnAdd:
 	lda	STACKDEPTH
 	cmp	#$0
