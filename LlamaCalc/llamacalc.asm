@@ -32,7 +32,7 @@
 .define VERSIONH #$00
 .define VERSIONL #$08
 
-; v 00 08 - Add, Subtract, Shift L, Shift R, Error handling
+; v 00 08 - Add, Subtract, Shift L, Shift R, ToBCD, Error handling
 ; v 00 07 - development mode, new menu, functions
 ; v 00 06 - Better, more flexible error display with backup and 'GO' press
 ; v 00 05 - some error display
