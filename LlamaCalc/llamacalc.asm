@@ -23,8 +23,6 @@
 ;	 F   ; shift right one bit
 ;	 A   ; Add result to top of stack (future)
 ;	 5   ; Subtract result from top of stack (future)
-; 	 9   ; Multiply result with top of stack (future)
-; 	 6   ; Divide result from top of stack (future)
 ;	GO   : return to result mode
 
 
@@ -81,6 +79,7 @@ ERRORCODE	= $1C
 .define ERROR_NONE		#$00
 .define ERROR_STACK_FULL	#$5F
 .define ERROR_STACK_EMPTY	#$5E
+.define ERROR_STACK_MATH	#$51
 
 
 DISPLAYMODE	= $1D	; 0 = splash, 1 = result, 2 = mode
@@ -188,6 +187,7 @@ handle_error:
 	beq	keyInput	; ok. then display the key
 	jmp	waitForGo	; wait for [GO] pressed
 
+; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
 handle_GO:
 	; menu display
 	lda	DISPLAY_MODE_MENU
@@ -211,20 +211,14 @@ menuLoop:
 	cmp	KEY_F
 	beq	fcnShiftRight	; [F] -> Shift Right
 
-	jmp	menuLoop	; dunno what that was, repeat.
-
-	; future:
 	cmp	KEY_A
 	beq	fcnAdd		; [A] -> Add
+
 	cmp	KEY_5
 	beq	fcnSubtract	; [5] -> Subtract
 
-	cmp	KEY_9
-	beq	fcnMultiply	; [9] -> multiply
-	cmp	KEY_6
-	beq	fcnDivide	; [6] -> divide
-	
 	jmp	menuLoop	; dunno what that was, repeat.
+
 
 ; exit the menu mode
 exitMenu:
@@ -258,18 +252,75 @@ fcnShiftRight:
 	jmp	exitMenu	; and exit out of menu mode
 
 
-; future math functions
-;	   I = RESULT
-;	   POP
-;	   J = RESULT
-;	   RESULT = I (math) J
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-fcnAdd:
-fcnSubtract:
-fcnMultiply:
-fcnDivide:
-	jmp	exitMenu	; and exit out of menu mode
+fcnStackError:
+	; display the stack math error
+	lda	ERROR_STACK_MATH
+	sta	ERRORCODE
 	
+	lda	DISPLAY_MODE_ERROR
+	sta	DISPLAYMODE
+
+	; display the erorr wait for GO
+:	jsr	display
+	jsr	GETKEY
+	cmp	KEY_GO
+	bne	:-
+
+	; restore menu display mode
+	jmp	handle_GO
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+fcnAdd:
+	lda	STACKDEPTH
+	cmp	#$0
+	beq	fcnStackError
+
+	; prep the operands
+	jsr 	resultToI	; I = Result
+	jsr	stackPop	; Result = pop()
+	jsr 	resultToJ	; J = Result
+
+	; do the math
+	clc
+	lda	I0
+	adc	J0
+	sta	RESULT0
+	lda	I1
+	adc	J1
+	sta	RESULT1
+	lda	I2
+	adc	J2
+	sta	RESULT2
+
+	; return to result mode
+	jmp	exitMenu
+
+fcnSubtract:
+	lda	STACKDEPTH
+	cmp	#$0
+	beq	fcnStackError
+
+	; prep the operands
+	jsr 	resultToI	; I = Result
+	jsr	stackPop	; Result = pop()
+	jsr 	resultToJ	; J = Result
+
+	; do the math
+	sec
+	lda	J0
+	sbc	I0
+	sta	RESULT0
+	lda	J1
+	sbc	I1
+	sta	RESULT1
+	lda	J2
+	sbc	I2
+	sta	RESULT2
+
+	; return to result mode
+	jmp	exitMenu
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

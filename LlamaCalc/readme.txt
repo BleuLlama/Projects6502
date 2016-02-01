@@ -120,20 +120,16 @@
 		Result = convertToDecimal( Result )
 		00 01 11 -> 00 02 73
 
-	[A]	*A*dd the top of stack to the result (future)
+	[A]	*A*dd the top of stack to the result
 		Stack gets popped in the process
 
-	[5]	*S*ubtract the top of stack from the result (future)
-		Stack gets popped in the process
+	[5]	*S*ubtract the result from the top of stack 
+		Result = the top of stack minus the current result
 
-	[9]	Multiply (very future)
-
-	[6]	Divide (very future)
-
-	[E]	Shift result left 1 bit (future)
+	[E]	Shift result left 1 bit
 		00 01 00  ->  00 02 00
 
-	[F]	Shift result right 1 bit (future)
+	[F]	Shift result right 1 bit
 		00 01 00  ->  00 00 80
 
 
@@ -147,10 +143,10 @@
 		DEC	<<1	>>1
 
 	[8]	[9]	[A]	[B]
-		Mult	Add	HEX
+			Add	HEX
 
 	[4]	[5]	[6]	[7]
-		Sub	Div
+		Sub
 
 	[0]	[1]	[2]	[3]
 
@@ -179,3 +175,6 @@
 
 		EE EE  5E	Stack Empty	(5->S, E->Empty)
 				You tried to pop an item from a full stack
+
+		EE EE  51	Math Stack error 
+				You tried to do a math thing with an empty stack
