@@ -14,6 +14,7 @@ SUBDIRS := \
 	FBOK_A FBOK_B FBOK_C FBOK_D \
 	\
 	LlamaCalc \
+	LlamASketch \
 	RLETest
 
 all: clean
