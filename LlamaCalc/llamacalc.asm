@@ -30,8 +30,9 @@
 ; Version history
 
 .define VERSIONH #$00
-.define VERSIONL #$07
+.define VERSIONL #$08
 
+; v 00 08 - Add, Subtract, Shift L, Shift R, Error handling
 ; v 00 07 - development mode, new menu, functions
 ; v 00 06 - Better, more flexible error display with backup and 'GO' press
 ; v 00 05 - some error display
@@ -43,15 +44,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; define the functionality we want to use in the library
-UseVideoDisplay0 = 1 ; video display 0
-
+;UseVideoDisplay0 = 1 ; video display 0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; include our support defines and libraries
 
 .include "KimDefs.asm"
 .include "KimCode200.asm"
-.include "KimLib.asm"
+;.include "KimLib.asm"
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -120,8 +120,10 @@ main:
 	sta	J2
 
 	jsr	display		; display the version number
+.if .defined(UseVideoDisplay0)
 	jsr	gfxNoise	; display noise stuff
 	jsr	cls		; clear the screen black
+.endif
 
 	; wait for 'go' to advance to result mode
 waitForGo:
@@ -309,14 +311,14 @@ fcnSubtract:
 
 	; do the math
 	sec
-	lda	J0
-	sbc	I0
+	lda	I0
+	sbc	J0
 	sta	RESULT0
-	lda	J1
-	sbc	I1
+	lda	I1
+	sbc	J1
 	sta	RESULT1
-	lda	J2
-	sbc	I2
+	lda	I2
+	sbc	J2
 	sta	RESULT2
 
 	; return to result mode
