@@ -80,6 +80,7 @@ ERRORCODE	= $1C
 .define ERROR_STACK_FULL	#$5F
 .define ERROR_STACK_EMPTY	#$5E
 .define ERROR_STACK_MATH	#$51
+.define ERROR_NOT_IMPLEMENTED	#$FF
 
 
 DISPLAYMODE	= $1D	; 0 = splash, 1 = result, 2 = mode
@@ -241,7 +242,7 @@ exitMenu:
 
 ; convert result to hex  (Result is base 10, convert to base 16)
 fcnHex:
-	jmp	exitMenu	; and exit out of menu mode
+	jmp	fcnNotImpError	; not implemented yet.
 
 ; convert result to BCD  (Result is base 16, convert to base 10)
 fcnToBCD: ; binary to BCD
@@ -292,10 +293,14 @@ fcnShiftRight:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+fcnNotImpError:
+	lda 	ERROR_NOT_IMPLEMENTED
+	jmp	fse2
+
 fcnStackError:
 	; display the stack math error
 	lda	ERROR_STACK_MATH
-	sta	ERRORCODE
+fse2: 	sta	ERRORCODE
 	
 	lda	DISPLAY_MODE_ERROR
 	sta	DISPLAYMODE

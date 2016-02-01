@@ -180,3 +180,5 @@
 
 		EE EE  51	Math Stack error 
 				You tried to do a math thing with an empty stack
+
+		EE EE  FF	Operation not implemented yet
