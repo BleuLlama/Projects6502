@@ -97,6 +97,64 @@
 --------------------
            Menu Mode
 
+	Menu mode is where all of the calculator functionality is
+	kept.  As functionality is added, it will be added to this
+	area.  If you find yourself in Menu mode but want to go
+	back to Result mode, you can press [GO] to return.
+
+	It looks something like this on the LEDs:
+
+		90 90 90
+
+	It is set up to look like "GO GO GO".
+
+	Here's a list of "GO" commands...
+
+	[GO]	return to Result mode
+
+	[B]	*B*inary conversion (HEX) (future)
+		convert the decimal value shown to hex
+		00 01 11 -> 00 00 6F
+
+	[D]	*D*ecimal conversion (BCD) (future)
+		Result = convertToDecimal( Result )
+		00 01 11 -> 00 02 73
+
+	[A]	*A*dd the top of stack to the result (future)
+		Stack gets popped in the process
+
+	[5]	*S*ubtract the top of stack from the result (future)
+		Stack gets popped in the process
+
+	[9]	Multiply (very future)
+
+	[6]	Divide (very future)
+
+	[E]	Shift result left 1 bit (future)
+		00 01 00  ->  00 02 00
+
+	[F]	Shift result right 1 bit (future)
+		00 01 00  ->  00 00 80
+
+
+		Quick Lookup:
+	[GO]
+	Result
+
+	[AD]	[DA]	[PC]	[+]
+
+	[C]	[D]	[E]	[F]
+		DEC	<<1	>>1
+
+	[8]	[9]	[A]	[B]
+		Mult	Add	HEX
+
+	[4]	[5]	[6]	[7]
+		Sub	Div
+
+	[0]	[1]	[2]	[3]
+
+
 --------------------
           Error Mode
 
@@ -105,9 +163,9 @@
 
 		EE EE  00
 
-	It is very obvious by the 4 E's on the display.  The remaining
-	two digits indicate the error code.  I tried to make the
-	codes look similar to what caused them.
+	It is very obvious by the 4 E's (for "Error") on the display.
+	The remaining two digits indicate the error code.  I tried
+	to make the codes look similar to what caused them.
 
 	Error mode can be exited by pressing [GO].  This will return
 	you to Result mode.

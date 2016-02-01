@@ -8,45 +8,24 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Functions:
-;	A--F : enter new number into the display
-;	AD   : shift value left one bit (x2)
-;	DA   : shift value right one bit (integer /2)
-; 	PC/+ : pop/push current value to stack
-;	GO   : continue (when in an error or startup display)
+; [Go] exits the current mode to return it to Result mode
 
-; New version:
+; Result mode:
 ;	A--F : enter new number
 ;	+    : push to stack
 ;	PC   : pop from stack
-;	GO   : Switch to/from menu mode
-;	Menu mode:
-;	 B   : Convert result to binary (base 16)
+;	GO   : Switch to menu mode
+;
+; Menu mode:
+;	 B   : Convert result to binary/hex (base 16)
 ;	 D   : Convert result to decimal (base 10)
-;	 +   : pop stack to operand, add to result
 ;	 E   : shift left one bit
 ;	 F   ; shift right one bit
-
-
-; Internally:
-;	INH POINTH, POINTL  - displayed value / error display
-;	RESULT	- displayed result
-;	STACKTOP - item at the front of the stack
-;	STACK	- bottom of the stack
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; POP:     item is removed from stack, placed in RESULT
-; PUSH:    RESULT is copied to the stack
-; SHIFTL:  RESULT is << 1
-; SHIFTR:  RESULT is >> 1
-; MATH:    RESULT = RESULT (math) STACK
-;	   I = RESULT
-;	   POP
-;	   J = RESULT
-;	   RESULT = I (math) J
-
+;	 A   ; Add result to top of stack (future)
+;	 5   ; Subtract result from top of stack (future)
+; 	 9   ; Multiply result with top of stack (future)
+; 	 6   ; Divide result from top of stack (future)
+;	GO   : return to result mode
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -55,6 +34,7 @@
 .define VERSIONH #$00
 .define VERSIONL #$07
 
+; v 00 07 - development mode, new menu, functions
 ; v 00 06 - Better, more flexible error display with backup and 'GO' press
 ; v 00 05 - some error display
 ; v 00 04 - PC/+ stack pop and push
@@ -170,7 +150,8 @@ keyInput:
 	; check for AD/DA/PC/+ keys
 	and	KEY_SPECIAL_MASK
 	cmp	KEY_SPECIAL_MASK
-	bne	keyShiftIntoDisplay	; nope. regular key press
+	beq	handleControlKey	; yep. control key, handle it.
+	jmp	keyShiftIntoDisplay	; nope. regular key press
 
 	; handle a control key
 handleControlKey:
@@ -215,16 +196,79 @@ menuLoop:
 	jsr	display
 
 	jsr	GETKEY		; get a keypress
+	sta	KEYBAK		; store a backup
+
 	cmp	KEY_GO
-	beq	exitMenu
+	beq	exitMenu	; [GO] -> back to result mode
+
+	cmp	KEY_B
+	beq	fcnHex		; [B] -> result to Hex
+	cmp	KEY_D
+	beq	fcnDecimal	; [D] -> result to Decimal
+
+	cmp	KEY_E
+	beq	fcnShiftLeft	; [E] -> Shift Left
+	cmp	KEY_F
+	beq	fcnShiftRight	; [F] -> Shift Right
+
 	jmp	menuLoop	; dunno what that was, repeat.
 
+	; future:
+	cmp	KEY_A
+	beq	fcnAdd		; [A] -> Add
+	cmp	KEY_5
+	beq	fcnSubtract	; [5] -> Subtract
 
+	cmp	KEY_9
+	beq	fcnMultiply	; [9] -> multiply
+	cmp	KEY_6
+	beq	fcnDivide	; [6] -> divide
+	
+	jmp	menuLoop	; dunno what that was, repeat.
+
+; exit the menu mode
 exitMenu:
-	; exit the menu mode
 	lda	DISPLAY_MODE_RESULT
 	sta	DISPLAYMODE
 	jmp	keyInput
+
+
+; convert result to decimal
+fcnDecimal:
+	jmp	exitMenu	; and exit out of menu mode
+
+; convert result to hex
+fcnHex:
+	jmp	exitMenu	; and exit out of menu mode
+
+; shift result left one bit
+fcnShiftLeft:
+	clc
+	rol	RESULT0
+	rol	RESULT1
+	rol	RESULT2
+	jmp	exitMenu	; and exit out of menu mode
+
+; shift result right one bit
+fcnShiftRight:
+	clc
+	ror	RESULT2
+	ror	RESULT1
+	ror	RESULT0
+	jmp	exitMenu	; and exit out of menu mode
+
+
+; future math functions
+;	   I = RESULT
+;	   POP
+;	   J = RESULT
+;	   RESULT = I (math) J
+
+fcnAdd:
+fcnSubtract:
+fcnMultiply:
+fcnDivide:
+	jmp	exitMenu	; and exit out of menu mode
 	
 
 
@@ -288,6 +332,7 @@ display:
 	; display result (fall through)
 	
 displayResult:
+	;	R2 R1  R0
 	lda	RESULT0
 	sta	KIM_INH
 	lda	RESULT1
@@ -298,6 +343,7 @@ displayResult:
 	rts
 
 displaySplash:
+	;	CA 1C  07
 	lda	#$CA
 	sta	KIM_POINTH
 	lda	#$1C
@@ -308,15 +354,16 @@ displaySplash:
 	rts
 
 displayMenu:
-	lda	#$00
+	;	90 90  90
+	lda	#$90
 	sta	KIM_POINTH
 	sta	KIM_POINTL
-	lda	#$99
 	sta	KIM_INH
 	jsr	SCANDS
 	rts
 
 displayError:
+	;	EE EE  xx
 	lda	#$EE
 	sta	KIM_POINTH
 	sta	KIM_POINTL
@@ -330,24 +377,6 @@ errorClear:
 	sta	ERRORCODE
 	rts
 	
-
-; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
-; bit shift
-
-shiftL:
-	clc
-	rol	RESULT0
-	rol	RESULT1
-	rol	RESULT2
-	rts
-
-shiftR:
-	clc
-	ror	RESULT2
-	ror	RESULT1
-	ror	RESULT0
-	rts
-
 
 ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; ; 
 ; result, i, j swaps
