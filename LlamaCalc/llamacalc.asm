@@ -14,6 +14,7 @@
 ;	A--F : enter new number
 ;	+    : push to stack
 ;	PC   : pop from stack
+;	DA   ; display stack usage
 ;	GO   : Switch to menu mode
 ;
 ; Menu mode:
@@ -30,8 +31,10 @@
 ; Version history
 
 .define VERSIONH #$00
-.define VERSIONL #$08
+.define VERSIONL #$09
 
+; v 00 09 - DA to Display Allocation of the stack
+; ----------- v08 released at the end of RC2016/1!
 ; v 00 08 - Add, Subtract, Shift L, Shift R, ToBCD, Error handling
 ; v 00 07 - development mode, new menu, functions
 ; v 00 06 - Better, more flexible error display with backup and 'GO' press
@@ -87,6 +90,7 @@ DISPLAYMODE	= $1D	; 0 = splash, 1 = result, 2 = mode
 .define DISPLAY_MODE_SPLASH	#$00
 .define DISPLAY_MODE_RESULT	#$01
 .define DISPLAY_MODE_MENU	#$02
+.define DISPLAY_MODE_STACK	#$03
 .define DISPLAY_MODE_ERROR	#$FF
 
 STACKDEPTH	= $1E	; current depth of the stack
@@ -186,11 +190,16 @@ handleControlKey:
 	cmp	KEY_AD		; ADdress button
 		; no function yet
 
-	cmp	KEY_DA		; DAta button
-		; no function yet
+	cmp	KEY_DA		; DA button (Display Allocation of stack)
+	beq	handle_DA
 
 	jmp	keyInput	; dunno what it was. ignore and repeat
 
+
+handle_DA:
+	lda	DISPLAY_MODE_STACK	; show the stack allocation
+	sta	DISPLAYMODE
+	jmp	waitForGo
 
 handle_PL:
 	jsr	stackPush	; push the result on the stack
@@ -433,6 +442,9 @@ display:
 	cmp	DISPLAY_MODE_ERROR
 	beq	displayError
 
+	cmp	DISPLAY_MODE_STACK
+	beq	displayStack
+
 	; display result (fall through)
 	
 displayResult:
@@ -465,6 +477,36 @@ displayMenu:
 	sta	KIM_INH
 	jsr	SCANDS
 	rts
+
+displayStack:
+	;	S7 AC   xx
+	lda	#$57
+	sta	KIM_POINTH
+	lda	#$AC
+	sta	KIM_POINTL
+
+	lda	STACKDEPTH
+	cmp	STACKMIN		; empty stack?
+	beq	ds_empty
+
+	cmp	STACKMAX		; full stack?
+	beq	ds_full
+
+ds_finish:
+	sta	KIM_INH			; display it!
+	jsr	SCANDS
+	rts
+
+ds_empty:
+	clc
+	adc	#$E0			; Empty display
+	jmp	ds_finish
+
+ds_full:
+	clc
+	adc	#$F0			; Full display
+	jmp	ds_finish
+
 
 displayError:
 	;	EE EE  xx
