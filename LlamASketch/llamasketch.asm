@@ -97,6 +97,9 @@ loop:
 	cmp	KEY_5
 	beq	nextColor
 
+	cmp	KEY_GO
+	beq	pickColor
+
 	cmp	KEY_F
 	beq	clearScreen
 
@@ -143,6 +146,29 @@ clearScreen:
 	lda	COLOR
 	jsr	fillscr
 	jmp	loop
+
+pickColor:
+	lda	#$CC
+	sta	KIM_POINTH
+	sta	KIM_POINTL
+	lda	#$00
+	sta	KIM_INH		; set display to CCCC 00
+:	jsr	SCANDS		; update the display
+	jsr	GETKEY		; get a press
+	cmp	KEY_NONE
+	beq	:-		; nothing pressed? try again
+	cmp	KEY_GO
+	beq	donePickColor	; cancel, return
+
+	cmp	KEY_F+1
+	bcs	:-		; it wasn't 0..F, try again
+
+	; set new color
+	sta	COLOR
+
+donePickColor:
+	jmp	loop
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
